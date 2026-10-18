@@ -32,10 +32,19 @@ def create_app(test_config=None):
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )''')
 
+    # Safe, repeatable migration of existing version-1 databases.
+    with connect() as db:
+        columns = {row['name'] for row in db.execute('PRAGMA table_info(applications)')}
+        for column in ('follow_up_date', 'interview_date'):
+            if column not in columns:
+                db.execute(f"ALTER TABLE applications ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
+
     @app.get('/')
     def index():
         search = request.args.get('q', '').strip()
         status = request.args.get('status', '').strip()
+        deadline_filter = request.args.get('deadline', '').strip()
+        today = date.today().isoformat()
         sql = 'SELECT * FROM applications WHERE 1=1'
         args = []
         if search:
@@ -44,14 +53,28 @@ def create_app(test_config=None):
         if status in STATUSES:
             sql += ' AND status = ?'
             args.append(status)
-        sql += ' ORDER BY applied_date DESC, id DESC'
+        if deadline_filter == 'overdue':
+            sql += " AND follow_up_date != '' AND follow_up_date < ? AND status NOT IN ('Offer','Rejected','Withdrawn')"
+            args.append(today)
+        elif deadline_filter == 'today':
+            sql += " AND follow_up_date = ? AND status NOT IN ('Offer','Rejected','Withdrawn')"
+            args.append(today)
+        elif deadline_filter == 'upcoming':
+            sql += " AND follow_up_date > ? AND status NOT IN ('Offer','Rejected','Withdrawn')"
+            args.append(today)
+        sql += " ORDER BY CASE WHEN follow_up_date != '' THEN 0 ELSE 1 END, follow_up_date ASC, applied_date DESC, id DESC"
         with connect() as db:
             applications = db.execute(sql, args).fetchall()
             counts = {row['status']: row['total'] for row in db.execute('SELECT status, COUNT(*) AS total FROM applications GROUP BY status')}
-        return render_template('index.html', applications=applications, counts=counts, statuses=STATUSES, search=search, selected_status=status)
+            deadline_counts = dict(db.execute("""SELECT
+                SUM(CASE WHEN follow_up_date != '' AND follow_up_date < ? THEN 1 ELSE 0 END) AS overdue,
+                SUM(CASE WHEN follow_up_date = ? THEN 1 ELSE 0 END) AS today,
+                SUM(CASE WHEN follow_up_date > ? THEN 1 ELSE 0 END) AS upcoming
+                FROM applications WHERE status NOT IN ('Offer','Rejected','Withdrawn')""", (today, today, today)).fetchone())
+        return render_template('index.html', applications=applications, counts=counts, statuses=STATUSES, search=search, selected_status=status, deadline_filter=deadline_filter, deadline_counts=deadline_counts, today=today)
 
     def parse_form():
-        data = {key: request.form.get(key, '').strip() for key in ('company', 'position', 'location', 'status', 'applied_date', 'job_url', 'notes')}
+        data = {key: request.form.get(key, '').strip() for key in ('company', 'position', 'location', 'status', 'applied_date', 'job_url', 'notes', 'follow_up_date', 'interview_date')}
         if not data['company'] or not data['position']:
             return None, 'Company and position are required.'
         if data['status'] not in STATUSES:
@@ -60,6 +83,12 @@ def create_app(test_config=None):
             date.fromisoformat(data['applied_date'])
         except ValueError:
             return None, 'Enter a valid application date.'
+        for field, label in (('follow_up_date', 'follow-up'), ('interview_date', 'interview')):
+            if data[field]:
+                try:
+                    date.fromisoformat(data[field])
+                except ValueError:
+                    return None, f'Enter a valid {label} date.'
         if data['job_url'] and not data['job_url'].startswith(('https://', 'http://')):
             return None, 'Job URL must start with http:// or https://.'
         return data, None
@@ -72,7 +101,7 @@ def create_app(test_config=None):
                 flash(error, 'error')
                 return render_template('form.html', application=request.form, statuses=STATUSES, today=date.today().isoformat(), heading='Add application'), 400
             with connect() as db:
-                db.execute('INSERT INTO applications (company, position, location, status, applied_date, job_url, notes) VALUES (:company, :position, :location, :status, :applied_date, :job_url, :notes)', data)
+                db.execute('INSERT INTO applications (company, position, location, status, applied_date, job_url, notes, follow_up_date, interview_date) VALUES (:company, :position, :location, :status, :applied_date, :job_url, :notes, :follow_up_date, :interview_date)', data)
             flash('Application added.', 'success')
             return redirect(url_for('index'))
         return render_template('form.html', application={}, statuses=STATUSES, today=date.today().isoformat(), heading='Add application')
@@ -90,7 +119,7 @@ def create_app(test_config=None):
                 return render_template('form.html', application=request.form, statuses=STATUSES, today=date.today().isoformat(), heading='Edit application'), 400
             data['id'] = application_id
             with connect() as db:
-                db.execute('UPDATE applications SET company=:company, position=:position, location=:location, status=:status, applied_date=:applied_date, job_url=:job_url, notes=:notes WHERE id=:id', data)
+                db.execute('UPDATE applications SET company=:company, position=:position, location=:location, status=:status, applied_date=:applied_date, job_url=:job_url, notes=:notes, follow_up_date=:follow_up_date, interview_date=:interview_date WHERE id=:id', data)
             flash('Application updated.', 'success')
             return redirect(url_for('index'))
         return render_template('form.html', application=application, statuses=STATUSES, today=date.today().isoformat(), heading='Edit application')
