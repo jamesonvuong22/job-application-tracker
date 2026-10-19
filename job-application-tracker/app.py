@@ -122,7 +122,7 @@ def create_app(test_config=None):
                 db.execute('UPDATE applications SET company=:company, position=:position, location=:location, status=:status, applied_date=:applied_date, job_url=:job_url, notes=:notes, follow_up_date=:follow_up_date, interview_date=:interview_date WHERE id=:id', data)
             flash('Application updated.', 'success')
             return redirect(url_for('index'))
-        return render_template('form.html', application=application, statuses=STATUSES, today=date.today().isoformat(), heading='Edit application')
+        return render_template('form.html', application=dict(application), statuses=STATUSES, today=date.today().isoformat(), heading='Edit application')
 
     @app.post('/delete/<int:application_id>')
     def delete(application_id):
