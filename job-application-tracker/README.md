@@ -87,3 +87,14 @@ Stop the running server and back up your local `instance/applications.db` file (
 
 ### What counts as overdue?
 A follow-up date earlier than your computer's current date, for applications not in Offer, Rejected, or Withdrawn status. A deadline today is "Due today." This is an **in-app** reminder, not an automatic email or notification.
+
+
+## Phase 3 — Analytics dashboard
+
+Navigate to **Analytics** in the top bar or open `/analytics`. View application counts by month and current status, along with outcome and interview/offer indicators. Select **All time**, **Last 30 days**, or **Last 90 days**. The charts are built with HTML/CSS; no JavaScript chart library or external service is required.
+
+**Interpretation:** The current status is a snapshot, not an event history. The “Outcome recorded” metric is **not** a recruiter-response rate. Interview/offer shares do not represent historical conversion, because previously interviewed applications may now be rejected. A future phase can capture interview events and recruiter replies for more accurate funnel analytics.
+
+This version also fixes the edit-form crash by converting `sqlite3.Row` to a dictionary before rendering. No database migration is required for Phase 3.
+
+Run tests with `python -m pytest -q`. Keep your existing `instance` folder / database when upgrading.
