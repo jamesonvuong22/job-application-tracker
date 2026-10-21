@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 
@@ -72,6 +72,52 @@ def create_app(test_config=None):
                 SUM(CASE WHEN follow_up_date > ? THEN 1 ELSE 0 END) AS upcoming
                 FROM applications WHERE status NOT IN ('Offer','Rejected','Withdrawn')""", (today, today, today)).fetchone())
         return render_template('index.html', applications=applications, counts=counts, statuses=STATUSES, search=search, selected_status=status, deadline_filter=deadline_filter, deadline_counts=deadline_counts, today=today)
+
+
+    @app.get('/analytics')
+    def analytics():
+        """Aggregate actual application records without storing duplicate analytics data."""
+        period = request.args.get('period', 'all')
+        if period not in ('all', '30', '90'):
+            period = 'all'
+        where = ''
+        params = ()
+        if period != 'all':
+            # Inclusive calendar window: today plus the previous N-1 days.
+            start = (date.today() - timedelta(days=int(period) - 1)).isoformat()
+            where = ' WHERE applied_date >= ? AND applied_date <= ?'
+            params = (start, date.today().isoformat())
+        with connect() as db:
+            total = db.execute('SELECT COUNT(*) FROM applications' + where, params).fetchone()[0]
+            status_rows = db.execute('SELECT status, COUNT(*) AS total FROM applications' + where + ' GROUP BY status', params).fetchall()
+            month_rows = db.execute("SELECT substr(applied_date, 1, 7) AS month, COUNT(*) AS total FROM applications" + where + ' GROUP BY month ORDER BY month', params).fetchall()
+        status_counts = {status: 0 for status in STATUSES}
+        for r in status_rows:
+            status_counts[r['status']] = r['total']
+        # These are CURRENT pipeline-status ratios, not lifetime historical conversion rates.
+        responded = sum(status_counts.get(s, 0) for s in ('Interview', 'Offer', 'Rejected'))
+        interview_or_offer = sum(status_counts.get(s, 0) for s in ('Interview', 'Offer'))
+        offers = status_counts.get('Offer', 0)
+        # A rejected application may or may not have received a personal response.
+        # Label this an "outcome recorded" proxy rather than a recruiter response rate.
+        outcome_recorded = responded
+        metrics = {
+            'total': total,
+            'interview_or_offer': interview_or_offer,
+            'offers': offers,
+            'outcome_pct': round(100 * outcome_recorded / total, 1) if total else 0,
+            'interview_pct': round(100 * interview_or_offer / total, 1) if total else 0,
+            'offer_pct': round(100 * offers / total, 1) if total else 0,
+        }
+        months = [{'label': row['month'], 'total': row['total']} for row in month_rows]
+        max_month = max((row['total'] for row in months), default=0)
+        for row in months:
+            row['width'] = round(100 * row['total'] / max_month, 1) if max_month else 0
+        breakdown = [{'status': status, 'total': count,
+                      'pct': round(100 * count / total, 1) if total else 0}
+                     for status, count in status_counts.items()]
+        return render_template('analytics.html', period=period, metrics=metrics,
+                               months=months, breakdown=breakdown)
 
     def parse_form():
         data = {key: request.form.get(key, '').strip() for key in ('company', 'position', 'location', 'status', 'applied_date', 'job_url', 'notes', 'follow_up_date', 'interview_date')}
