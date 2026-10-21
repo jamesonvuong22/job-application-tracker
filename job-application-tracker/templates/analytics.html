@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="heading"><div><p class="eyebrow">APPLICATION INSIGHTS</p><h1>Analytics dashboard</h1><p class="muted">A snapshot calculated from your saved applications.</p></div><a class="button subtle" href="{{ url_for('index') }}">← Applications</a></div>
+<form class="analytics-period" method="get"><label for="period">Application date range</label><select id="period" name="period" onchange="this.form.submit()"><option value="all" {% if period == 'all' %}selected{% endif %}>All time</option><option value="30" {% if period == '30' %}selected{% endif %}>Last 30 days</option><option value="90" {% if period == '90' %}selected{% endif %}>Last 90 days</option></select><noscript><button class="button" type="submit">Apply</button></noscript></form>
+<div class="analytics-stats">
+<div class="stat"><span>Total applications</span><strong>{{ metrics.total }}</strong></div>
+<div class="stat"><span>Interview or offer (current status)</span><strong>{{ metrics.interview_pct }}%</strong></div>
+<div class="stat"><span>Offers (current status)</span><strong>{{ metrics.offers }}</strong></div>
+<div class="stat"><span>Outcome recorded*</span><strong>{{ metrics.outcome_pct }}%</strong></div>
+</div>
+<div class="analytics-columns">
+<section class="panel"><h2>Applications by month</h2><p class="muted helper">Grouped by the application date you entered.</p>
+{% if months %}<div class="bar-list">{% for item in months %}<div class="bar-row"><span class="bar-label">{{ item.label }}</span><div class="bar-track"><div class="bar-fill" style="width: {{ item.width }}%"></div></div><strong>{{ item.total }}</strong></div>{% endfor %}</div>{% else %}<p class="empty">No applications in this date range yet.</p>{% endif %}
+</section>
+<section class="panel"><h2>Application status distribution</h2><p class="muted helper">Based on each application's current status.</p><div class="bar-list">{% for item in breakdown %}<div class="bar-row"><span class="bar-label">{{ item.status }}</span><div class="bar-track"><div class="bar-fill status-bar" style="width: {{ item.pct }}%"></div></div><strong>{{ item.total }}</strong></div>{% endfor %}</div></section>
+</div>
+<section class="panel analytics-notes"><h2>Understanding these numbers</h2><p class="muted">The percentag0.0% rather than dividing by zeroes are calculated as a share of all applications in the selected date range. <strong>Interview or offer</strong> counts applications currently marked Interview or Offer; it does not include interviews that happened before a later rejection.</p><p class="muted"><strong>*Outcome recorded</strong> counts applications currently marked Interview, Offer, or Rejected. It is <em>not</em> a verified recruiter response rate: a rejection may be automated, and responses are not recorded separately yet.</p><p class="muted">These charts will update whenever you add, edit, or delete an application. Empty ranges show .</p></section>
+{% endblock %}
