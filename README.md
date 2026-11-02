@@ -2,13 +2,15 @@
 
 A beginner-friendly full-stack web application to organize internship and job applications. Built with **Python, Flask, SQLite, HTML, CSS, and JavaScript**.
 
-## Features (v1)
+## Features (v2)
 - Add, edit, and delete job applications
 - Track company, role, location, status, date, job posting link, and notes
 - Search by company or role and filter by application status
 - Dashboard with application counts
 - Persistent SQLite database and responsive dark-themed UI
-- Basic automated tests
+- Follow-up deadlines, interview dates, overdue / due-today / upcoming indicators and filters
+- Automatic migration of existing v1 SQLite databases (preserves application records)
+- Automated tests covering the phase-2 features and migration
 
 ## Screenshots
 Add screenshots to `docs/` after running the app, then link them here.
@@ -62,7 +64,8 @@ job-application-tracker/
 ```
 
 ## Roadmap
-- [ ] Follow-up dates and reminders
+- [x] Dashboard-based follow-up reminders and interview dates
+- [ ] Optional email or push notifications (not included in v2)
 - [ ] Sortable tables, pagination, and advanced filters
 - [ ] Analytics charts (status breakdown and application trends)
 - [ ] Export/import CSV
@@ -78,3 +81,31 @@ This is a **local learning project**, not production-ready software. Flask debug
 
 ## License
 MIT — see LICENSE.
+
+## Upgrade from v1 to v2
+Stop the running server and back up your local `instance/applications.db` file (if present). Replace your **source files** with the updated ones; keep your original `instance/` directory and its database in place. The next app startup automatically adds `follow_up_date` and `interview_date` columns if needed without deleting existing records. Database is local and excluded from Git; do not copy a database from a ZIP on top of your own.
+
+### What counts as overdue?
+A follow-up date earlier than your computer's current date, for applications not in Offer, Rejected, or Withdrawn status. A deadline today is "Due today." This is an **in-app** reminder, not an automatic email or notification.
+
+
+## Phase 3 — Analytics dashboard
+
+Navigate to **Analytics** in the top bar or open `/analytics`. View application counts by month and current status, along with outcome and interview/offer indicators. Select **All time**, **Last 30 days**, or **Last 90 days**. The charts are built with HTML/CSS; no JavaScript chart library or external service is required.
+
+**Interpretation:** The current status is a snapshot, not an event history. The “Outcome recorded” metric is **not** a recruiter-response rate. Interview/offer shares do not represent historical conversion, because previously interviewed applications may now be rejected. A future phase can capture interview events and recruiter replies for more accurate funnel analytics.
+
+This version also fixes the edit-form crash by converting `sqlite3.Row` to a dictionary before rendering. No database migration is required for Phase 3.
+
+Run tests with `python -m pytest -q`. Keep your existing `instance` folder / database when upgrading.
+
+
+## Phase 4 — CSV import and export
+
+Use **Import CSV** and **Export CSV** in the application navigation. Export downloads all saved applications as a UTF-8 CSV (with a BOM for Excel compatibility). Import accepts UTF-8 CSV with required columns `company`, `position`, `applied_date` (`YYYY-MM-DD`) and optional columns `location`, `status`, `job_url`, `notes`, `follow_up_date`, `interview_date`. The status defaults to `Applied`. Import limit: 2 MB and 5,000 rows.
+
+Imports are validated before any database writes; one bad row cancels the entire file. Entries with the same company (case-insensitive), position (case-insensitive) and application date as an existing or previously imported entry are skipped; existing entries are not updated. Import/export never uses SQLite record IDs. CSV formula-like values are prefixed with an apostrophe on export to reduce spreadsheet formula injection risk. This means exported cells starting with `=`, `+`, `-`, or `@` may gain a leading apostrophe when re-imported; review such values if round-tripping.
+
+**Data privacy:** Exported files contain your application notes and URLs. Keep them private and do not commit exported CSVs to a public GitHub repository. The application is still a single-user local-development tool and must not be publicly deployed as-is.
+
+Run `python -m pytest -q` to check all tests, including `tests/test_phase4.py`.
