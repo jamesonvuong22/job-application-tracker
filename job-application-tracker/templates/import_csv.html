@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="heading"><div><p class="eyebrow">DATA MANAGEMENT</p><h1>Import applications</h1><p class="muted">Import applications from a UTF-8 CSV file. Existing records are preserved.</p></div><a class="button subtle" href="{{ url_for('export_csv') }}">Export CSV</a></div>
+<section class="panel import-panel">
+  <h2>Upload CSV</h2>
+  <p class="muted">Required columns: <strong>company, position, applied_date</strong> (YYYY-MM-DD). Optional columns: location, status, job_url, notes, follow_up_date, interview_date.</p>
+  <p class="muted">Accepted statuses: Wishlist, Applied, Interview, Offer, Rejected, Withdrawn. Files must be UTF-8 and at most 2 MB / 5,000 rows. Empty status defaults to Applied.</p>
+  <form method="post" enctype="multipart/form-data" class="import-form">
+    <label>Choose CSV file <input type="file" name="file" accept=".csv,text/csv" required></label>
+    <button type="submit" class="button primary">Import applications</button>
+  </form>
+  <p class="muted">Duplicates (same company, position, and application date, ignoring capitalization) are skipped. If any row has invalid data, nothing is imported. Existing records are never overwritten.</p>
+  <p class="muted">To create a starter CSV, click Export CSV in the navigation. It includes every supported column, even with no saved applications.</p>
+</section>
+{% endblock %}
