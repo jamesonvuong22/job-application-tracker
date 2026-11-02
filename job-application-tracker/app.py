@@ -1,10 +1,43 @@
 import os
+import csv
+import io
 import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
-from flask import Flask, abort, flash, redirect, render_template, request, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, url_for, Response
 
 STATUSES = ('Wishlist', 'Applied', 'Interview', 'Offer', 'Rejected', 'Withdrawn')
+CSV_FIELDS = ('company', 'position', 'location', 'status', 'applied_date', 'job_url', 'notes', 'follow_up_date', 'interview_date')
+CSV_LIMIT_BYTES = 2 * 1024 * 1024
+CSV_MAX_ROWS = 5000
+
+
+def safe_csv_cell(value):
+    """Prevent formula execution when the CSV is opened in spreadsheet software."""
+    value = str(value or '')
+    if value.lstrip().startswith(('=', '+', '-', '@', '\t', '\r', '\n')):
+        return "'" + value
+    return value
+
+
+def validate_csv_row(data):
+    if not data['company'] or not data['position']:
+        return 'company and position are required'
+    if data['status'] not in STATUSES:
+        return 'invalid status'
+    for name in ('applied_date', 'follow_up_date', 'interview_date'):
+        if name == 'applied_date' or data[name]:
+            try:
+                date.fromisoformat(data[name])
+            except ValueError:
+                return f'invalid {name}'
+    if data['job_url'] and not data['job_url'].startswith(('https://', 'http://')):
+        return 'invalid job_url'
+    for field, length in (('company', 120), ('position', 160), ('location', 160), ('job_url', 2000)):
+        if len(data[field]) > length:
+            return f'{field} exceeds {length} characters'
+    return None
+
 
 
 def create_app(test_config=None):
@@ -118,6 +151,73 @@ def create_app(test_config=None):
                      for status, count in status_counts.items()]
         return render_template('analytics.html', period=period, metrics=metrics,
                                months=months, breakdown=breakdown)
+
+    @app.get('/export/csv')
+    def export_csv():
+        """Export all records in a spreadsheet-compatible file (no database IDs)."""
+        output = io.StringIO(newline='')
+        writer = csv.writer(output)
+        writer.writerow(CSV_FIELDS)
+        with connect() as db:
+            for record in db.execute('SELECT * FROM applications ORDER BY applied_date DESC, id DESC'):
+                writer.writerow([safe_csv_cell(record[field]) for field in CSV_FIELDS])
+        return Response('\ufeff' + output.getvalue(), mimetype='text/csv', headers={
+            'Content-Disposition': 'attachment; filename="applytrack-applications.csv"',
+            'Cache-Control': 'no-store',
+        })
+
+    @app.route('/import/csv', methods=['GET', 'POST'])
+    def import_csv():
+        if request.method == 'GET':
+            return render_template('import_csv.html', fields=CSV_FIELDS)
+        upload = request.files.get('file')
+        if not upload or not upload.filename or not upload.filename.lower().endswith('.csv'):
+            flash('Choose a .csv file to import.', 'error')
+            return redirect(url_for('import_csv'))
+        raw = upload.stream.read(CSV_LIMIT_BYTES + 1)
+        if len(raw) > CSV_LIMIT_BYTES:
+            flash('CSV exceeds the 2 MB limit.', 'error')
+            return redirect(url_for('import_csv'))
+        try:
+            content = raw.decode('utf-8-sig')
+            reader = csv.DictReader(io.StringIO(content, newline=''), strict=True)
+            if not reader.fieldnames or len(reader.fieldnames) != len(set(reader.fieldnames)):
+                raise ValueError('Missing or repeated header columns.')
+            if any(field not in reader.fieldnames for field in ('company', 'position', 'applied_date')):
+                raise ValueError('CSV must have company, position, and applied_date columns.')
+            if any(field not in CSV_FIELDS for field in reader.fieldnames):
+                raise ValueError('CSV contains unsupported columns.')
+            rows = []
+            for line, row in enumerate(reader, start=2):
+                if len(rows) >= CSV_MAX_ROWS:
+                    raise ValueError('CSV exceeds the 5,000-row limit.')
+                if None in row or any(value is None for value in row.values()):
+                    raise ValueError(f'Row {line}: incorrect number of fields.')
+                data = {field: (row.get(field) or '').strip() for field in CSV_FIELDS}
+                data['status'] = data['status'] or 'Applied'
+                error = validate_csv_row(data)
+                if error:
+                    raise ValueError(f'Row {line}: {error}.')
+                rows.append(data)
+        except (UnicodeDecodeError, csv.Error, ValueError) as exc:
+            flash(f'Import cancelled: {exc} No applications were added.', 'error')
+            return redirect(url_for('import_csv'))
+        inserted = skipped = 0
+        # One transaction; duplicates are matched by company, position, and application date.
+        with connect() as db:
+            existing = {(r['company'].casefold(), r['position'].casefold(), r['applied_date'])
+                        for r in db.execute('SELECT company, position, applied_date FROM applications')}
+            for data in rows:
+                key = (data['company'].casefold(), data['position'].casefold(), data['applied_date'])
+                if key in existing:
+                    skipped += 1
+                    continue
+                db.execute('INSERT INTO applications (' + ', '.join(CSV_FIELDS) + ') VALUES (' +
+                           ', '.join(':' + col for col in CSV_FIELDS) + ')', data)
+                existing.add(key)
+                inserted += 1
+        flash(f'Imported {inserted} applications; skipped {skipped} duplicates.', 'success')
+        return redirect(url_for('index'))
 
     def parse_form():
         data = {key: request.form.get(key, '').strip() for key in ('company', 'position', 'location', 'status', 'applied_date', 'job_url', 'notes', 'follow_up_date', 'interview_date')}
