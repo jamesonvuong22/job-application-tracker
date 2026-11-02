@@ -11,3 +11,8 @@
 .bar-list{display:flex;flex-direction:column;gap:19px;margin-top:25px}.bar-row{display:grid;grid-template-columns:105px minmax(0,1fr) 34px;gap:12px;align-items:center;font-size:13px}.bar-label{overflow-wrap:anywhere;color:#b7c6df}.bar-track{height:13px;border-radius:6px;background:#263550;overflow:hidden}.bar-fill{height:100%;border-radius:6px;background:#648bf5;min-width:0}.status-bar{background:#61cdb7}.bar-row strong{text-align:right}.analytics-notes p{line-height:1.55}.analytics-notes strong{color:#dfe7fa}
 @media(max-width:850px){.analytics-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-columns{grid-template-columns:1fr}}
 @media(max-width:450px){.bar-row{grid-template-columns:80px minmax(0,1fr) 27px;gap:8px}}
+
+/* Phase 4 */
+.import-panel { padding: 1.5rem; max-width: 850px; }
+.import-form { display: flex; gap: 1rem; flex-wrap: wrap; align-items: end; margin: 1.25rem 0; }
+.import-form label { display: grid; gap: .5rem; }
