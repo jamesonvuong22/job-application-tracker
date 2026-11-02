@@ -8,3 +8,6 @@ instance/
 .env
 .vscode/
 .DS_Store
+
+# Private exports
+applytrack-applications*.csv
