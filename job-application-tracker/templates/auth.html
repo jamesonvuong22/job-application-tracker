@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="panel auth-panel">
+  <p class="eyebrow">YOUR PRIVATE WORKSPACE</p>
+  <h1>{{ 'Create account' if mode == 'register' else 'Log in' }}</h1>
+  <p class="muted">{{ 'Start tracking your applications securely.' if mode == 'register' else 'Access your own applications and analytics.' }}</p>
+  <form method="post" class="auth-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Email<input type="email" name="email" autocomplete="email" maxlength="254" required></label>
+    <label>Password<input type="password" name="password" autocomplete="{{ 'new-password' if mode == 'register' else 'current-password' }}" {% if mode == 'register' %}minlength="12"{% endif %} required></label>
+    {% if mode == 'register' %}<p class="muted helper">Use at least 12 characters. Never reuse another account's password.</p>{% endif %}
+    <button class="button primary" type="submit">{{ 'Create account' if mode == 'register' else 'Log in' }}</button>
+  </form>
+  <p class="muted">{% if mode == 'register' %}Already registered? <a href="{{ url_for('login') }}">Log in</a>{% else %}Need an account? <a href="{{ url_for('register') }}">Register</a>{% endif %}</p>
+</section>
+{% endblock %}
