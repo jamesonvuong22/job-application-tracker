@@ -6,9 +6,13 @@
     <div>
         <p class="eyebrow">APPLICATION INSIGHTS</p>
         <h1>Analytics dashboard</h1>
-        <p class="muted">A snapshot calculated from your saved applications.</p>
+        <p class="muted">
+            A snapshot calculated from your saved applications.
+        </p>
     </div>
-    <a class="button subtle" href="{{ url_for('index') }}">← Applications</a>
+    <a class="button subtle" href="{{ url_for('index') }}">
+        ← Applications
+    </a>
 </div>
 
 <form class="analytics-period" method="get">
@@ -64,14 +68,17 @@
             <div class="bar-row">
                 <span class="bar-label">{{ item.label }}</span>
                 <div class="bar-track">
-                    <div class="bar-fill" style="width: {{ item.width }}%"></div>
+                    <div class="bar-fill"
+                         style="width: {{ item.width }}%"></div>
                 </div>
                 <strong>{{ item.total }}</strong>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p class="empty">No applications in this date range yet.</p>
+        <p class="empty">
+            No applications in this date range yet.
+        </p>
         {% endif %}
     </section>
 
@@ -86,7 +93,8 @@
             <div class="bar-row">
                 <span class="bar-label">{{ item.status }}</span>
                 <div class="bar-track">
-                    <div class="bar-fill status-bar" style="width: {{ item.pct }}%"></div>
+                    <div class="bar-fill status-bar"
+                         style="width: {{ item.pct }}%"></div>
                 </div>
                 <strong>{{ item.total }}</strong>
             </div>
