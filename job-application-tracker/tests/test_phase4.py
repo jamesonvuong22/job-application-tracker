@@ -2,17 +2,32 @@ import csv
 import io
 import sqlite3
 from app import create_app
+
+def post(client, path, **kwargs):
+    with client.session_transaction() as sess:
+        token = sess['csrf_token']
+    kwargs.setdefault('data', {})
+    kwargs['data']['csrf_token'] = token
+    return client.post(path, **kwargs)
+
+def signup(client, email='tester@example.com'):
+    client.get('/register')
+    result = post(client, '/register', data={'email': email, 'password': 'very-secure-password-123'})
+    assert result.status_code == 302
+
 import pytest
 
 
 @pytest.fixture
 def client(tmp_path):
     app = create_app({'TESTING': True, 'DATABASE': str(tmp_path / 'records.db')})
-    return app.test_client()
+    client = app.test_client()
+    signup(client)
+    return client
 
 
 def upload(client, text, name='applications.csv'):
-    return client.post('/import/csv', data={'file': (io.BytesIO(text.encode('utf-8')), name)},
+    return post(client, '/import/csv', data={'file': (io.BytesIO(text.encode('utf-8')), name)},
                        content_type='multipart/form-data', follow_redirects=True)
 
 
