@@ -5,7 +5,7 @@
   <title>ApplyTrack</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <header class="topbar"><div class="container nav"><a class="brand" href="{{ url_for('index') }}">◈ ApplyTrack</a><nav class="nav-links"><a href="{{ url_for('index') }}">Applications</a><a href="{{ url_for('analytics') }}">Analytics</a><a href="{{ url_for('import_csv') }}">Import CSV</a><a href="{{ url_for('export_csv') }}">Export CSV</a></nav></div></header>
+  <header class="topbar"><div class="container nav"><a class="brand" href="{{ url_for('index') }}">◈ ApplyTrack</a>{% if current_user %}<nav class="nav-links"><a href="{{ url_for('index') }}">Applications</a><a href="{{ url_for('analytics') }}">Analytics</a><a href="{{ url_for('import_csv') }}">Import CSV</a><a href="{{ url_for('export_csv') }}">Export CSV</a><span class="muted account-email">{{ current_user['email'] }}</span><form class="logout-form" method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button subtle" type="submit">Log out</button></form></nav>{% else %}<nav class="nav-links"><a href="{{ url_for('login') }}">Log in</a><a href="{{ url_for('register') }}">Register</a></nav>{% endif %}</div></header>
   <main class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="flash {{ category }}" role="alert">{{ message }}</div>{% endfor %}{% endwith %}
     {% block content %}{% endblock %}
