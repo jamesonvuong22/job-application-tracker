@@ -2,14 +2,29 @@ import sqlite3
 from datetime import date, timedelta
 from app import create_app
 
+def post(client, path, **kwargs):
+    with client.session_transaction() as sess:
+        token = sess['csrf_token']
+    kwargs.setdefault('data', {})
+    kwargs['data']['csrf_token'] = token
+    return client.post(path, **kwargs)
+
+def signup(client, email='tester@example.com'):
+    client.get('/register')
+    result = post(client, '/register', data={'email': email, 'password': 'very-secure-password-123'})
+    assert result.status_code == 302
+
+
 
 def make_client(tmp_path):
     app = create_app({'TESTING': True, 'DATABASE': str(tmp_path / 'data.db')})
-    return app.test_client(), app
+    client = app.test_client()
+    signup(client)
+    return client, app
 
 
 def add(client, company, status='Applied', days_ago=0):
-    return client.post('/new', data={
+    return post(client, '/new', data={
         'company': company, 'position': 'Intern', 'location': '',
         'status': status, 'applied_date': (date.today() - timedelta(days=days_ago)).isoformat(),
         'job_url': '', 'notes': '', 'follow_up_date': '', 'interview_date': ''
