@@ -1,111 +1,96 @@
-# ApplyTrack — Job Application Tracker
+# ApplyTrack — Full-Stack Job Application Tracker
 
-A beginner-friendly full-stack web application to organize internship and job applications. Built with **Python, Flask, SQLite, HTML, CSS, and JavaScript**.
+A portfolio project built with **Python, Flask, SQLite, HTML, CSS and JavaScript**. ApplyTrack tracks job applications, follow-ups, interviews, analytics, and CSV imports/exports. **Phase 5 adds account-based data isolation and authentication.**
 
-## Features (v2)
-- Add, edit, and delete job applications
-- Track company, role, location, status, date, job posting link, and notes
-- Search by company or role and filter by application status
-- Dashboard with application counts
-- Persistent SQLite database and responsive dark-themed UI
-- Follow-up deadlines, interview dates, overdue / due-today / upcoming indicators and filters
-- Automatic migration of existing v1 SQLite databases (preserves application records)
-- Automated tests covering the phase-2 features and migration
+## Features
 
-## Screenshots
-Add screenshots to `docs/` after running the app, then link them here.
+- Register, log in and log out; passwords hashed using Werkzeug's secure password hashing.
+- Each user's dashboard, deadlines, analytics, CSV imports/exports, and edit/delete routes access **only their own records**.
+- CSRF tokens on all state-changing forms and CSRF verification on all POST requests.
+- HttpOnly/SameSite=Lax cookies; set `COOKIE_SECURE=1` when using HTTPS.
+- Create, update, delete, search and filter applications.
+- Record follow-up and interview dates; identify overdue tasks.
+- View monthly analytics and status breakdowns.
+- Import/export CSV, validate imports, skip per-account duplicates, escape spreadsheet formulas on export.
+- Automatic, repeatable migration of Phase 1–4 SQLite databases.
 
-## Run locally
+## Install and run locally (Windows PowerShell)
 
-Requires **Python 3.10+**.
-
-### Windows (PowerShell)
 ```powershell
+cd job-application-tracker
 py -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python app.py
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe app.py
 ```
 
-### macOS / Linux
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python app.py
+Open http://127.0.0.1:5000 and click **Register**. For a first-time account choose a password with at least 12 characters. To run tests:
+
+```powershell
+.venv\Scripts\python.exe -m pytest -q
 ```
 
-Open **http://127.0.0.1:5000** in your browser.
+**Important:** run the commands **inside the folder containing `app.py`**, not the outer extracted ZIP folder.
 
-If PowerShell blocks activation, use `.venv\Scripts\python.exe -m pip install -r requirements.txt` and `.venv\Scripts\python.exe app.py` instead.
+## Upgrade safely from Phase 4
 
-## Run tests
-```bash
-python -m pytest -q
+1. Stop your server. Back up your existing `instance/applications.db` or custom `DATABASE` path before changing any code.
+2. Copy the updated code and templates into your **existing Git-connected project folder**. **Do not overwrite the existing `instance/` folder or `.git` directory.**
+3. Start the server. Database schema migrations automatically add `users` and `applications.user_id`. Existing data is not deleted.
+4. **Before exposing the server to anyone**, register your own account **locally**. The **first account created** on a legacy database automatically receives all records that have no `user_id`. This is an intentional migration rule and is unsafe if an untrusted person can register first.
+5. Confirm your old records appear, log out and log back in, then run all tests.
+
+If you use a fresh Phase 5 database, each newly registered user starts with an empty list.
+
+## Required before public deployment
+
+This is a learning/portfolio MVP, **not a fully production-hardened service**. Before exposing it publicly, add email verification, password reset, login rate limiting, account recovery, security monitoring, and TLS/HTTPS. Configure a **persistent random `SECRET_KEY`** in the environment (never commit it) and set `COOKIE_SECURE=1` behind HTTPS. The application uses a random process-local secret for local development when `SECRET_KEY` is missing, which logs users out after server restarts. Avoid enabling Flask debugging on public servers.
+
+Generate a secret:
+
+```powershell
+py -c "import secrets; print(secrets.token_hex(32))"
+$env:SECRET_KEY="PASTE_THE_GENERATED_SECRET_HERE"
 ```
 
-## Project structure
+For a hosted service, use a managed secret setting instead of committing `.env`.
+
+## Project files
+
 ```text
 job-application-tracker/
-├── app.py                # Flask routes, validation, SQLite operations
-├── templates/
-│   ├── base.html         # Shared page layout
-│   ├── index.html        # Dashboard, search, filter, list
-│   └── form.html         # Create/edit form
-├── static/
-│   ├── style.css         # Responsive styling
-│   └── app.js            # Delete confirmation
-├── tests/
-│   └── test_app.py       # Basic route and CRUD tests
+├── app.py
 ├── requirements.txt
+├── README.md
 ├── .env.example
 ├── .gitignore
-└── README.md
+├── static/
+│   ├── app.js
+│   └── style.css
+├── templates/
+│   ├── auth.html         # New registration/login forms
+│   ├── base.html         # Account-aware navigation/logout
+│   ├── index.html
+│   ├── form.html
+│   ├── analytics.html
+│   └── import_csv.html
+└── tests/
+    ├── test_app.py
+    ├── test_phase2.py
+    ├── test_phase3.py
+    ├── test_phase4.py
+    └── test_phase5.py   # Authentication, CSRF, isolation and migration
 ```
 
-## Roadmap
-- [x] Dashboard-based follow-up reminders and interview dates
-- [ ] Optional email or push notifications (not included in v2)
-- [ ] Sortable tables, pagination, and advanced filters
-- [ ] Analytics charts (status breakdown and application trends)
-- [ ] Export/import CSV
-- [ ] Separate backend into routes, models, and services
-- [ ] SQLAlchemy + migrations
-- [ ] User authentication and account-specific data
-- [ ] CSRF protection, stricter validation, and production configuration
-- [ ] CI pipeline with GitHub Actions
-- [ ] Deploy a public demo with persistent hosted database
+## GitHub commit
 
-## Important security note
-This is a **local learning project**, not production-ready software. Flask debug mode is enabled only when running `python app.py`. Do not deploy with debug mode on. Before exposing it publicly, add authentication, CSRF protection, a secure secret key, and deployment configuration. Never commit private application details or local database files.
+After copying the files and passing tests from inside your existing Git repository:
 
-## License
-MIT — see LICENSE.
+```powershell
+git add .
+git commit -m "feat: add authentication and per-user application security"
+git push origin main
+```
 
-## Upgrade from v1 to v2
-Stop the running server and back up your local `instance/applications.db` file (if present). Replace your **source files** with the updated ones; keep your original `instance/` directory and its database in place. The next app startup automatically adds `follow_up_date` and `interview_date` columns if needed without deleting existing records. Database is local and excluded from Git; do not copy a database from a ZIP on top of your own.
+## Next (Phase 6)
 
-### What counts as overdue?
-A follow-up date earlier than your computer's current date, for applications not in Offer, Rejected, or Withdrawn status. A deadline today is "Due today." This is an **in-app** reminder, not an automatic email or notification.
-
-
-## Phase 3 — Analytics dashboard
-
-Navigate to **Analytics** in the top bar or open `/analytics`. View application counts by month and current status, along with outcome and interview/offer indicators. Select **All time**, **Last 30 days**, or **Last 90 days**. The charts are built with HTML/CSS; no JavaScript chart library or external service is required.
-
-**Interpretation:** The current status is a snapshot, not an event history. The “Outcome recorded” metric is **not** a recruiter-response rate. Interview/offer shares do not represent historical conversion, because previously interviewed applications may now be rejected. A future phase can capture interview events and recruiter replies for more accurate funnel analytics.
-
-This version also fixes the edit-form crash by converting `sqlite3.Row` to a dictionary before rendering. No database migration is required for Phase 3.
-
-Run tests with `python -m pytest -q`. Keep your existing `instance` folder / database when upgrading.
-
-
-## Phase 4 — CSV import and export
-
-Use **Import CSV** and **Export CSV** in the application navigation. Export downloads all saved applications as a UTF-8 CSV (with a BOM for Excel compatibility). Import accepts UTF-8 CSV with required columns `company`, `position`, `applied_date` (`YYYY-MM-DD`) and optional columns `location`, `status`, `job_url`, `notes`, `follow_up_date`, `interview_date`. The status defaults to `Applied`. Import limit: 2 MB and 5,000 rows.
-
-Imports are validated before any database writes; one bad row cancels the entire file. Entries with the same company (case-insensitive), position (case-insensitive) and application date as an existing or previously imported entry are skipped; existing entries are not updated. Import/export never uses SQLite record IDs. CSV formula-like values are prefixed with an apostrophe on export to reduce spreadsheet formula injection risk. This means exported cells starting with `=`, `+`, `-`, or `@` may gain a leading apostrophe when re-imported; review such values if round-tripping.
-
-**Data privacy:** Exported files contain your application notes and URLs. Keep them private and do not commit exported CSVs to a public GitHub repository. The application is still a single-user local-development tool and must not be publicly deployed as-is.
-
-Run `python -m pytest -q` to check all tests, including `tests/test_phase4.py`.
+Add deployment, automated CI, secret configuration, HTTPS, and production-grade login protections.
