@@ -5,7 +5,7 @@
   <h2>Upload CSV</h2>
   <p class="muted">Required columns: <strong>company, position, applied_date</strong> (YYYY-MM-DD). Optional columns: location, status, job_url, notes, follow_up_date, interview_date.</p>
   <p class="muted">Accepted statuses: Wishlist, Applied, Interview, Offer, Rejected, Withdrawn. Files must be UTF-8 and at most 2 MB / 5,000 rows. Empty status defaults to Applied.</p>
-  <form method="post" enctype="multipart/form-data" class="import-form">
+  <form method="post" enctype="multipart/form-data" class="import-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <label>Choose CSV file <input type="file" name="file" accept=".csv,text/csv" required></label>
     <button type="submit" class="button primary">Import applications</button>
   </form>
